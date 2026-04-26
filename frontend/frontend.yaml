@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  env.js: |
+    window.env = {
+      API_URL: "http://localhost:30080"
+    };
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netflop-frontend
+  labels:
+    netflop: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      netflop: frontend
+  template:
+    metadata:
+      labels:
+        netflop: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/karimmdjdb/netflop-frontend:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: frontend-config
+              mountPath: /usr/share/nginx/html/env.js
+              subPath: env.js
+      volumes:
+        - name: frontend-config
+          configMap:
+            name: frontend-config
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: netflop-frontend-nodeport
+spec:
+  type: NodePort
+  selector:
+    netflop: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080

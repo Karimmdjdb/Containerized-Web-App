@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tmdb-secret
+type: Opaque
+data:
+  TMDB_API_KEY: ZmQzZTM0YTZkMDY2MzMzMDc2MDc4YWNiMzdiMTU4NGI=
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+data:
+  REDIS_HOST: redis-db-service.default.svc
+  REDIS_PORT: "6379"
+  REDIS_TTL: "3600"
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netflop-api
+  labels:
+    netflop: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      netflop: api
+  template:
+    metadata:
+      labels:
+        netflop: api
+    spec:
+      containers:
+      - name: netflop-api
+        image: ghcr.io/karimmdjdb/netflop-api:latest
+        ports:
+        - containerPort: 8090
+
+        env:
+        - name: TMDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tmdb-secret
+              key: TMDB_API_KEY
+
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: redis-config
+              key: REDIS_HOST
+
+        - name: REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: redis-config
+              key: REDIS_PORT
+
+        - name: REDIS_TTL
+          valueFrom:
+            configMapKeyRef:
+              name: redis-config
+              key: REDIS_TTL
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: netflop-api
+  labels:
+    netflop: api
+spec:
+  type: NodePort
+  selector:
+    netflop: api
+  ports:
+    - protocol: TCP
+      port: 8090
+      targetPort: 8090
+      nodePort: 30081
